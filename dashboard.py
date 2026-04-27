@@ -16,7 +16,7 @@ st.set_page_config(
 # Header
 
 st.title("Bike Sharing Dashboard")
-st.markdown("Analisis data peminjaman sepeda — **Capital Bikeshare System**")
+st.markdown("Analisis data peminjaman sepeda per jam — **Capital Bikeshare System**")
 st.divider()
 
 # Load Data
@@ -26,6 +26,7 @@ def load_data():
     return df
 
 df = load_data()
+df["bulan"] = df["dteday"].dt.to_period("M")
 
 # Mapping 
 season_map    = {1: "Spring", 2: "Summer", 3: "Fall", 4: "Winter"}
@@ -36,31 +37,61 @@ month_map     = {1: "Januari", 2: "Februari", 3:"Maret", 4:"April", 5:"Mei", 6:"
 workingday_map = {1: "Yes", 0: "No"}
 holiday_map = {1: "Yes", 0: "No"}
 
+# Sidebar Filter
+st.sidebar.header("🎛️ Filter Data")
+
+selected_year = st.sidebar.multiselect(
+    "Tahun",
+    options=sorted(df["yr"].unique()),
+    default=sorted(df["yr"].unique()),
+    format_func=lambda x: year_map[x],
+)
+
+selected_season = st.sidebar.multiselect(
+    "Musim",
+    options=sorted(df["season"].unique()),
+    default=sorted(df["season"].unique()),
+    format_func=lambda x: season_map[x],
+)
+
+selected_weather = st.sidebar.multiselect(
+    "Cuaca",
+    options=sorted(df["weathersit"].unique()),
+    default=sorted(df["weathersit"].unique()),
+    format_func=lambda x: weather_map.get(x, str(x)),
+)
+
+# Filter dataframe
+df_filtered = df[
+    (df["yr"].isin(selected_year)) &
+    (df["season"].isin(selected_season)) &
+    (df["weathersit"].isin(selected_weather))
+]
+
 # Metrik
 k1, k2, k3, k4 = st.columns(4)
 
 with k1:
     with st.container(border=True):
-        st.metric("Total Peminjaman", f"{df['cnt'].sum():,}")
+        st.metric("Total Peminjaman", f"{df_filtered['cnt'].sum():,}")
 
 with k2:
     with st.container(border=True):
-        st.metric("Rata-rata per Jam", f"{df['cnt'].mean():.1f}")
+        st.metric("Rata-rata per Jam", f"{df_filtered['cnt'].mean():.1f}")
 
 with k3:
     with st.container(border=True):
-        st.metric("Total Pengguna Kasual", f"{df['casual'].sum():,}")
+        st.metric("Total Pengguna Kasual", f"{df_filtered['casual'].sum():,}")
 
 with k4:
     with st.container(border=True):
-        st.metric("Total Pengguna Terdaftar", f"{df['registered'].sum():,}")
+        st.metric("Total Pengguna Terdaftar", f"{df_filtered['registered'].sum():,}")
 
 st.divider()
 
 # ROW 1: TREN BULANAN
 st.subheader("📈 Tren Peminjaman Bulanan")
-df["bulan"] = df["dteday"].dt.to_period("M")
-monthly = df.groupby("bulan")["cnt"].sum().reset_index()
+monthly = df_filtered.groupby("bulan")["cnt"].sum().reset_index()
 monthly["bulan"] = monthly["bulan"].dt.to_timestamp()
 
 fig, ax = plt.subplots(figsize=(12, 4))
@@ -78,7 +109,7 @@ col1, col2 = st.columns([6, 5])
 
 with col1:
     st.subheader("🕐 Heatmap: Jam vs Hari dalam Seminggu")
-    pivot = df.pivot_table(values="cnt", index="weekday", columns="hr", aggfunc="mean")
+    pivot = df_filtered.pivot_table(values="cnt", index="weekday", columns="hr", aggfunc="mean")
     pivot.index = [weekday_map[i] for i in pivot.index]
     fig3, ax3 = plt.subplots(figsize=(10, 4))
     sns.heatmap(pivot, cmap="YlOrRd", ax=ax3, linewidths=0.3,
@@ -91,7 +122,7 @@ with col1:
 
 with col2:
     st.subheader("🌤️ Peminjaman per Musim")
-    season_data = df.groupby("season")["cnt"].sum().reset_index()
+    season_data = df_filtered.groupby("season")["cnt"].sum().reset_index()
     season_data["label"] = season_data["season"].map(season_map)
     colors = ["#FF6B9D", "#FFD93D", "#6BCB77", "#4D96FF"]
     fig2, ax2 = plt.subplots(figsize=(5, 4))
@@ -112,7 +143,7 @@ col5, col6 = st.columns(2)
 
 with col5:
     st.subheader("🌡️ Pengaruh Suhu terhadap Peminjaman")
-    sample = df.sample(min(2000, len(df)), random_state=42)
+    sample = df_filtered.sample(min(2000, len(df_filtered)), random_state=42)
     fig5, ax5 = plt.subplots(figsize=(6, 4))
     scatter = ax5.scatter(
         sample["temp"] * 41,   # denormalize ke °C (temp_actual = temp * 41)
@@ -129,7 +160,7 @@ with col5:
 
 with col6:
     st.subheader("⏰ Rata-rata Peminjaman per Jam")
-    hourly = df.groupby("hr")["cnt"].mean().reset_index()
+    hourly = df_filtered.groupby("hr")["cnt"].mean().reset_index()
     fig6, ax6 = plt.subplots(figsize=(6, 4))
     ax6.bar(hourly["hr"], hourly["cnt"],
             color=["#1a73e8" if (h in [7,8,9,17,18,19]) else "#b3cde3" for h in hourly["hr"]])
@@ -145,7 +176,7 @@ with col6:
 
 # ROW 4: TABEL DATA MENTAH (OPSIONAL)
 with st.expander("📋 Lihat Data Mentah"):
-    df_display = df.copy()
+    df_display = df_filtered.copy()
     df_display = df_display.drop('bulan', axis=1)
     
     # Mapping nilai
@@ -168,4 +199,4 @@ with st.expander("📋 Lihat Data Mentah"):
         use_container_width=True,
         height=300,
     )
-    st.caption(f"Menampilkan {len(df):,} baris data.")
+    st.caption(f"Menampilkan {len(df_display):,} baris data.")
