@@ -16,7 +16,7 @@ st.set_page_config(
 # Header
 
 st.title("Bike Sharing Dashboard")
-st.markdown("Analisis data peminjaman sepeda per jam — **Capital Bikeshare System**")
+st.markdown("Analisis data peminjaman sepeda — **Capital Bikeshare System**")
 st.divider()
 
 # Load Data
