@@ -21,7 +21,7 @@ st.divider()
 
 # Load Data
 def load_data():
-    df = pd.read_csv("D:\ANNAS\DOKUMEN\STUDI INDEPENDENT\DICODING - DBS FOUNDATION\PEMBELAJARAN\Belajar Fundamental Analisis Data\PROJEK AKHIR\CODE\hour.csv")
+    df = pd.read_csv("hour.csv")
     df["dteday"] = pd.to_datetime(df["dteday"])
     return df
 
